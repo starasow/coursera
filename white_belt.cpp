@@ -6,11 +6,30 @@
 #include <set>
 #include <cmath>
 #include <vector>
+#include <stdexcept>
 
 using namespace std;
 
 // g++ -O2 white_belt.cpp -o white_belt
 // g++ -std=c++17 -O2 white_belt.cpp -o white_belt
+vector<string> split_date(const string& i_str, const string& i_delim){
+    vector<string> result;
+    
+    size_t found = i_str.find(i_delim);
+    size_t startIndex = 0;
+
+    while(found != string::npos){
+		if(string(i_str.begin() + startIndex, i_str.begin()+found).size() < sizeof(char)){
+			found += 2;
+		}		
+		result.push_back(string(i_str.begin()+startIndex, i_str.begin()+found));
+		startIndex = found + i_delim.size();
+		found = i_str.find(i_delim, startIndex);
+    }
+    if(startIndex != i_str.size())
+        result.push_back(string(i_str.begin()+startIndex, i_str.end()));
+    return result;      
+}
 
 vector<string> split(const string& i_str, const string& i_delim){
     vector<string> result;
@@ -42,7 +61,11 @@ void PrintVector(const vector<string>& v){
 class Date {
 public:
     Date() {Year = 0; Month = 0; Day = 0;}
-	explicit Date (string Y, string M, string D) {Year = stoi(Y); Month = stoi(M); Day = stoi(D);}
+	explicit Date (string Y, string M, string D) {
+		Year = stoi(Y); Month = stoi(M); Day = stoi(D);
+		if (Month > 12 || Month < 1) {throw "Month value is invalid: " + to_string(Month);}
+		else if (Day > 31 || Day < 1) {throw "Day value is invalid: " + to_string(Day);}
+	}
     int GetYear() const { return Year; };
     int GetMonth() const { return Month; };
     int GetDay() const { return Day; };
@@ -112,30 +135,40 @@ int main() {
   vector<string> parsed_date;
   string command;
   
-  while (getline(cin, command)) {
+  while (getline(cin, command, '\n')) {
+	  //if (command == to_string('\n')) {continue;}
+	  if (command.size() == 0){              /* if .size() == 0, empty line */
+	      continue; 
+	  }   
 	  parsed_command = split(command, " ");
 	  /*
 	  parsed_command is a vector of {"command", "Date", "event"} 
 	  */
 	  //PrintVector(parsed_command);
-	  if (parsed_command[0] == "Add") {
-		  parsed_date = split(parsed_command[1], "-");
-		  db.AddEvent(Date (parsed_date[0], parsed_date[1], parsed_date[2]), parsed_command[2]);
-	  } else if (parsed_command[0] == "Del" && parsed_command.size() > 2) {
-		  //cout << "Deleting particular event:" << parsed_command[2] << " <-- this is the event" << endl;
-		  parsed_date = split(parsed_command[1], "-");
-		  db.DeleteEvent(Date (parsed_date[0], parsed_date[1], parsed_date[2]), parsed_command[2]);
-	  } else if (parsed_command[0] == "Del" && parsed_command.size() == 2) {
-		  //cout << "Deleting whole date" << endl;
-		  parsed_date = split(parsed_command[1], "-");
-		  cout << "Deleted " << db.DeleteDate(Date (parsed_date[0], parsed_date[1], parsed_date[2])) << " events" << endl;
-	  } else if (parsed_command[0] == "Find") {
-		  parsed_date = split(parsed_command[1], "-");
-		  db.Find(Date (parsed_date[0], parsed_date[1], parsed_date[2]));
-	  } else if (parsed_command[0] == "Print") {
-		  db.Print();
-	  } else {cin >> command; cout << "Unknown command: "<< command << endl;} 
-  }
-    // Считайте команды с потока ввода и обработайте каждую
+	  if (parsed_command[0] == "Print"){
+		   db.Print();
+	  } else if (parsed_command[0] == "Add" || parsed_command[0] == "Del" || parsed_command[0] == "Find"){
+		try {
+			parsed_date = split_date(parsed_command[1], "-");
+			cout << "****" << parsed_date.size() << endl;
+			PrintVector(parsed_date);
+			cout << "****" << parsed_date.size() << endl;
+			Date date = Date (parsed_date[0], parsed_date[1], parsed_date[2]);
+			if (parsed_command[0] == "Add") {db.AddEvent(date, parsed_command[2]);} 
+			else if (parsed_command[0] == "Del" && parsed_command.size() > 2) {
+			//cout << "Deleting particular event:" << parsed_command[2] << " <-- this is the event" << endl;
+			db.DeleteEvent(date, parsed_command[2]);
+			} else if (parsed_command[0] == "Del" && parsed_command.size() == 2) {
+		    //cout << "Deleting whole date" << endl;
+		    cout << "Deleted " << db.DeleteDate(date) << " events" << endl;
+	        } else if (parsed_command[0] == "Find") {db.Find(date);}
+		} catch (const string &str) {
+			cout << str;
+		} catch (...) {
+			cout << "Wrong date format: " << parsed_command[1];
+		}	
+	  } else {cout << "Unknown command: " << parsed_command[0];} 
+  }	
+  // Считайте команды с потока ввода и обработайте каждую
   return 0;
 }
